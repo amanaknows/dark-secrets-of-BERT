@@ -1,19 +1,19 @@
 # Introduction
-For installation and usage please refer to [release 0.6 of pytorch_pretrained_bert](https://github.com/huggingface/transformers/releases).
+For installation and docs please refer to [release 0.6 of pytorch_pretrained_bert](https://github.com/huggingface/transformers/releases).
 
-The current fork adds the attention analysis of 12 layer BERT. For details please refer to [the paper](https://arxiv.org/abs/1908.08593).
+The current fork adds the attention analysis of the 12 layer BERT model. For details please refer to [the paper](https://arxiv.org/abs/1908.08593).
 
-# Usage
+# Requirements and usage
 1. Install the requirements as
 ```
 pip install -r requirements.txt
 ```
 
-2. The current implementation assumes you have fine-tuned BERT model weights saved to a directory of your choice. 
+2. The current implementation assumes you have GLUE datasets downloaded and fine-tuned BERT model weights saved to a directory of your choice. You can download GLUE data as described [here](https://github.com/nyu-mll/GLUE-baselines/blob/master/download_glue_data.py). To fine-tune BERT, run [](./examples/run_classifier.py).
 
-3. The code for analysis is contained in [the jupyter notebook](./visualize_attention.ipynb).
+3. The code for analysis is contained in [the jupyter notebook](./visualize_attention.ipynb). 
 
-4. 
+4. To repeat the results of experiments, make sure to change the `path_to_model` and `path_to_data` in the notebook.
 
 
 # References
