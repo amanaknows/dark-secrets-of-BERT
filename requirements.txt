@@ -11,3 +11,4 @@ regex
 nltk==3.4
 beautifulsoup4==4.7.1
 spacy==2.1.3
+jupyter==1.0.0
