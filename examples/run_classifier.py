@@ -17,6 +17,11 @@
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+sys.path.insert(0, "/home/okovaleva/projects/bert_attention/pretrained_bert/pytorch-pretrained-BERT")
+print(sys.path)
+
+
 import argparse
 import csv
 import logging
@@ -38,7 +43,7 @@ from sklearn.metrics import matthews_corrcoef, f1_score
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
 from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig
 from pytorch_pretrained_bert.tokenization import BertTokenizer
-from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
+from pytorch_pretrained_bert.optimization import BertAdam, warmup_linear
 
 logger = logging.getLogger(__name__)
 
@@ -749,6 +754,26 @@ def main():
     model = BertForSequenceClassification.from_pretrained(args.bert_model,
               cache_dir=cache_dir,
               num_labels=num_labels)
+
+    ### RANDOM INITIALIZATION ####
+    # config = BertConfig.from_dict({
+    #         "attention_probs_dropout_prob": 0.1,
+    #         "hidden_act": "gelu",
+    #         "hidden_dropout_prob": 0.1,
+    #         "hidden_size": 768,
+    #         "initializer_range": 0.02,
+    #         "intermediate_size": 3072,
+    #         "max_position_embeddings": 512,
+    #         "num_attention_heads": 12,
+    #         "num_hidden_layers": 12,
+    #         "type_vocab_size": 2,
+    #         "vocab_size": 30522
+    #     })
+    # model = BertForSequenceClassification(config=config, num_labels=num_labels)
+
+
+    ###############################
+
     if args.fp16:
         model.half()
     model.to(device)
@@ -784,8 +809,6 @@ def main():
             optimizer = FP16_Optimizer(optimizer, dynamic_loss_scale=True)
         else:
             optimizer = FP16_Optimizer(optimizer, static_loss_scale=args.loss_scale)
-        warmup_linear = WarmupLinearSchedule(warmup=args.warmup_proportion,
-                                             t_total=num_train_optimization_steps)
 
     else:
         optimizer = BertAdam(optimizer_grouped_parameters,
@@ -828,7 +851,7 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
 
                 # define a new function to compute loss values for both output_modes
-                logits = model(input_ids, segment_ids, input_mask, labels=None)
+                logits, _ = model(input_ids, segment_ids, input_mask, labels=None)
 
                 if output_mode == "classification":
                     loss_fct = CrossEntropyLoss()
@@ -848,14 +871,14 @@ def main():
                     loss.backward()
 
                 tr_loss += loss.item()
+                print(loss.item())
                 nb_tr_examples += input_ids.size(0)
                 nb_tr_steps += 1
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
                         # modify learning rate with special warm up BERT uses
                         # if args.fp16 is False, BertAdam is used that handles this automatically
-                        lr_this_step = args.learning_rate * warmup_linear.get_lr(global_step/num_train_optimization_steps,
-                                                                                 args.warmup_proportion)
+                        lr_this_step = args.learning_rate * warmup_linear(global_step/num_train_optimization_steps, args.warmup_proportion)
                         for param_group in optimizer.param_groups:
                             param_group['lr'] = lr_this_step
                     optimizer.step()
@@ -914,7 +937,7 @@ def main():
             label_ids = label_ids.to(device)
 
             with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels=None)
+                logits, attns = model(input_ids, segment_ids, input_mask, labels=None)
 
             # create eval loss and other metric required by the task
             if output_mode == "classification":
@@ -923,14 +946,13 @@ def main():
             elif output_mode == "regression":
                 loss_fct = MSELoss()
                 tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
-            
+
             eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
             if len(preds) == 0:
                 preds.append(logits.detach().cpu().numpy())
             else:
-                preds[0] = np.append(
-                    preds[0], logits.detach().cpu().numpy(), axis=0)
+                preds[0] = np.append(preds[0], logits.detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
         preds = preds[0]
@@ -1019,6 +1041,7 @@ def main():
                 for key in sorted(result.keys()):
                     logger.info("  %s = %s", key, str(result[key]))
                     writer.write("%s = %s\n" % (key, str(result[key])))
+
 
 if __name__ == "__main__":
     main()
