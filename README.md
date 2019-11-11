@@ -1,7 +1,9 @@
 # Introduction
 For installation and docs please refer to [release 0.6 of pytorch_pretrained_bert](https://github.com/huggingface/transformers/releases).
 
-The current fork adds the attention analysis of the 12 layer BERT model. For details please refer to [the paper](https://arxiv.org/abs/1908.08593).
+The current fork adds the jupyter notebook on the attention analysis of the 12 layer BERT model. For details please refer to [the paper](https://arxiv.org/abs/1908.08593).
+
+Note that for the extraction of attention weights the source code of [](./pytorch_pretrained_bert/modeling.py) was modified (this functionality was added in later realeases of the forked repo).
 
 # Requirements and usage
 1. Install the requirements as
